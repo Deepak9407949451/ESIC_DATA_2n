@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "GoogleSyncSettings": {
+      "title": "GoogleSyncSettings",
+      "description": "Permanently persisted Google Apps Script Web App URL and Google Sheet Tab Name for a user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owning user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "webAppUrl": {
+          "type": "string",
+          "description": "Deployed Google Apps Script Web App URL.",
+          "maxLength": 2048
+        },
+        "sheetName": {
+          "type": "string",
+          "description": "Target Google Sheet tab name.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the settings document was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the settings document was last updated."
+        }
+      },
+      "required": ["ownerId", "webAppUrl", "sheetName", "createdAt", "updatedAt"]
+    },
+    "SavedNote": {
+      "title": "SavedNote",
+      "description": "Permanent notepad entry storing text, URLs, or reference content that cannot be deleted.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owning user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "label": {
+          "type": "string",
+          "description": "Optional short label or title for the saved note.",
+          "maxLength": 120
+        },
+        "content": {
+          "type": "string",
+          "description": "Saved text, URL, or pasted content.",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the note was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the note was last updated."
+        }
+      },
+      "required": ["ownerId", "label", "content", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/GoogleSyncSettings"
+      },
+      "description": "Per-user permanent Google Sheets sync configuration (Web App URL and Sheet Tab Name)."
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": {
+        "$ref": "#/entities/SavedNote"
+      },
+      "description": "Per-user permanent notepad entries storing pasted text and URLs without deletion."
+    }
+  }
+}

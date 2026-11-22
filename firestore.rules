@@ -1,0 +1,127 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isVerifiedOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    // Validation Blueprint: GoogleSyncSettings (matches firebase-blueprint.json)
+    function isValidGoogleSyncSettings(data) {
+      return data.keys().hasAll(['ownerId', 'webAppUrl', 'sheetName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'webAppUrl', 'sheetName', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.webAppUrl is string
+        && data.webAppUrl.size() <= 2048
+        && data.sheetName is string
+        && data.sheetName.size() >= 1
+        && data.sheetName.size() <= 120
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: SavedNote (matches firebase-blueprint.json)
+    function isValidSavedNote(data) {
+      return data.keys().hasAll(['ownerId', 'label', 'content', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'label', 'content', 'createdAt', 'updatedAt'])
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.label is string
+        && data.label.size() <= 120
+        && data.content is string
+        && data.content.size() >= 1
+        && data.content.size() <= 20000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Collection: /users/{userId}/settings/{settingId}
+    match /users/{userId}/settings/{settingId} {
+      allow get: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(settingId)
+        && settingId == 'googleSync';
+
+      allow list: if false;
+
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(settingId)
+        && settingId == 'googleSync'
+        && isValidGoogleSyncSettings(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(settingId)
+        && settingId == 'googleSync'
+        && isValidGoogleSyncSettings(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['webAppUrl', 'sheetName', 'updatedAt']);
+
+      // Permanently stored: forbid deletion of saved sync settings
+      allow delete: if false;
+    }
+
+    // Collection: /users/{userId}/notes/{noteId}
+    match /users/{userId}/notes/{noteId} {
+      allow get: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(noteId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(noteId)
+        && isValidSavedNote(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(noteId)
+        && isValidSavedNote(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['label', 'content', 'updatedAt']);
+
+      // Permanently stored notepad: forbid deletion of saved notes
+      allow delete: if false;
+    }
+  }
+}

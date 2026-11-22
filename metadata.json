@@ -1,0 +1,6 @@
+{
+  "name": "ESIC Claim Register",
+  "description": "Structured ESIC hospital patient admission, referral validity, and claim billing data entry form with 30-column register table, CSV import/export, and standalone HTML generator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
